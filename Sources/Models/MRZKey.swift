@@ -44,22 +44,41 @@ public struct MRZKey: @unchecked Sendable {
     }
     
     public init(mrzKey: String) throws {
-        let cleanMRZ = mrzKey.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        
-        guard cleanMRZ.count == 24 else {
-            throw NFCReaderError.invalidMRZKey
-        }
+        let cleanMRZ = mrzKey.replacingOccurrences(of: "\n", with: "")
+                             .replacingOccurrences(of: "\r", with: "")
+                             .trimmingCharacters(in: .whitespacesAndNewlines)
+                             .uppercased()
         
         let chars = Array(cleanMRZ)
+        var rawDocNum, docCd, rawDob, dobCd, rawDoe, doeCd: String
         
-        let rawDocNum = String(chars[0...8])
-        let docCd = String(chars[9])
-        
-        let rawDob = String(chars[10...15])
-        let dobCd = String(chars[16])
-        
-        let rawDoe = String(chars[17...22])
-        let doeCd = String(chars[23])
+        if chars.count == 24 {
+            // 24 ký tự (Đã được trích xuất sẵn)
+            rawDocNum = String(chars[0...8])
+            docCd = String(chars[9])
+            rawDob = String(chars[10...15])
+            dobCd = String(chars[16])
+            rawDoe = String(chars[17...22])
+            doeCd = String(chars[23])
+        } else if chars.count == 90 {
+            // Chuẩn TD1 (CCCD Việt Nam - 3 dòng x 30 ký tự)
+            rawDocNum = String(chars[5...13])
+            docCd = String(chars[14])
+            rawDob = String(chars[30...35])
+            dobCd = String(chars[36])
+            rawDoe = String(chars[38...43])
+            doeCd = String(chars[44])
+        } else if chars.count == 88 {
+            // Chuẩn TD3 (Hộ chiếu - 2 dòng x 44 ký tự)
+            rawDocNum = String(chars[44...52])
+            docCd = String(chars[53])
+            rawDob = String(chars[57...62])
+            dobCd = String(chars[63])
+            rawDoe = String(chars[65...70])
+            doeCd = String(chars[71])
+        } else {
+            throw NFCReaderError.invalidMRZKey
+        }
         
         // Verify Check Digit chống quét sai (OCR Error)
         guard String(MRZKey.checkDigit(for: rawDocNum)) == docCd,
